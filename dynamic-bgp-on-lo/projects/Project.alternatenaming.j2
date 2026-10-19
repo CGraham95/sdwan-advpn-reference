@@ -1,0 +1,233 @@
+{#                            Project Template                                #}
+{# -------------------------------------------------------------------------- #}
+{# Anonymized example demonstrating compact deterministic VPN tunnel naming   #}
+{# using <hub_name>_<ul_id><network_id>.                                      #}
+{# -------------------------------------------------------------------------- #}
+{# Design flavor: "Dynamic BGP on Loopback"                                   #}
+{# -------------------------------------------------------------------------- #}
+
+{# Optional Settings #}
+{
+{% set cert_auth = false %}
+{% set psk = vpnpass %}
+
+{% set intrareg_hub2hub = false %}
+{% set intrareg_advpn = true %}
+{% set multireg = true %}
+{% set multireg_advpn = true %}
+{% set spoke2hub_advpn = false %}
+{% set hub_hc_server = '10.200.99.1' %}
+
+{% set advpn2 = true %}
+{% set dynamic_bgp = false %}
+
+{% set strict_peering = false %}
+
+{% set short_community_as = '65000' %}
+{% set hub_strict_syn = true %}
+{% set lan_summary = '10.0.0.0/8' %}
+}
+
+{# Mandatory Global Definitions #}
+{
+{% set lo_summary = '10.255.255.0/24' %}
+}
+
+{# -------------------------------------------------------------------------- #}
+{# Regions                                                                    #}
+{# -------------------------------------------------------------------------- #}
+
+{% set regions = {
+    'REGION1': {
+      'as': '64600',
+      'hubs': [ 'HUB1', 'HUB2', 'HUB3', 'HUB4', 'HUB5', 'HUB6' ]
+    }
+  }
+%}
+
+{# -------------------------------------------------------------------------- #}
+{# Device Profiles                                                            #}
+{#                                                                            #}
+{# ul_id identifies the local WAN underlay independently of ol_type.           #}
+{#                                                                            #}
+{# Example naming:                                                            #}
+{#   HUB1_111 = HUB1 / underlay 1 / network-id 11                             #}
+{#   HUB1_211 = HUB1 / underlay 2 / network-id 11                             #}
+{# -------------------------------------------------------------------------- #}
+
+{
+{% set profiles = {
+    'SingleISP': {
+      'interfaces': [
+        {
+          'name': wan1_int,
+          'ul_id': 1,
+          'role': 'wan',
+          'ol_type': '1',
+          'ip': wan1_ip,
+          'dia': true,
+          'access': 'ping https ssh fgfm'
+        },
+        {
+          'name': wan1_int,
+          'ul_id': 1,
+          'role': 'wan',
+          'ol_type': '2'
+        }
+      ]
+    },
+
+    'DualISP': {
+      'interfaces': [
+        {
+          'name': wan1_int,
+          'ul_id': 1,
+          'role': 'wan',
+          'ol_type': '1',
+          'ip': wan1_ip,
+          'dia': true,
+          'access': 'ping https ssh fgfm'
+        },
+        {
+          'name': wan1_int,
+          'ul_id': 1,
+          'role': 'wan',
+          'ol_type': '2'
+        },
+        {
+          'name': wan2_int,
+          'ul_id': 2,
+          'role': 'wan',
+          'ol_type': '1',
+          'ip': wan2_ip,
+          'dia': true,
+          'access': 'ping https ssh fgfm'
+        },
+        {
+          'name': wan2_int,
+          'ul_id': 2,
+          'role': 'wan',
+          'ol_type': '2'
+        }
+      ]
+    },
+
+    'HUB1': {
+      'options': {
+        'vdom': "DATA"
+      },
+      'interfaces': [
+        {
+          'name': wan1_int,
+          'ul_id': 1,
+          'role': 'wan',
+          'ol_type': '1',
+          'ip': wan1_ip,
+          'dia': true,
+          'access': 'ping https ssh fgfm'
+        },
+        {
+          'name': wan1_int,
+          'ul_id': 1,
+          'role': 'wan',
+          'ol_type': '2'
+        },
+        {
+          'name': wan2_int,
+          'ul_id': 2,
+          'role': 'wan',
+          'ol_type': '1',
+          'ip': wan2_ip,
+          'dia': true,
+          'access': 'ping https ssh fgfm'
+        },
+        {
+          'name': wan2_int,
+          'ul_id': 2,
+          'role': 'wan',
+          'ol_type': '2'
+        }
+      ]
+    }
+  }
+%}
+}
+
+{# -------------------------------------------------------------------------- #}
+{# Hubs                                                                       #}
+{#                                                                            #}
+{# RFC 5737 documentation addresses are used for anonymized public WAN IPs.   #}
+{# -------------------------------------------------------------------------- #}
+
+{% set hubs = {
+    'HUB1': {
+        'hub_name': 'HUB1',
+        'lo_bgp': '10.255.255.10',
+        'overlays': {
+            '1': {
+                'wan_ip': '192.0.2.10',
+                'network_id': 11,
+            },
+            '2': {
+                'wan_ip': '192.0.2.10',
+                'network_id': 12,
+            }
+        }
+    },
+
+    'HUB2': {
+        'hub_name': 'HUB2',
+        'lo_bgp': '10.255.255.50',
+        'overlays': {
+            '1': {
+                'wan_ip': '192.0.2.20',
+                'network_id': 51,
+            }
+        }
+    },
+
+    'HUB3': {
+        'hub_name': 'HUB3',
+        'lo_bgp': '10.255.255.60',
+        'overlays': {
+            '1': {
+                'wan_ip': '198.51.100.30',
+                'network_id': 61,
+            }
+        }
+    },
+
+    'HUB4': {
+        'hub_name': 'HUB4',
+        'lo_bgp': '10.255.255.70',
+        'overlays': {
+            '1': {
+                'wan_ip': '198.51.100.40',
+                'network_id': 71,
+            }
+        }
+    },
+
+    'HUB5': {
+        'hub_name': 'HUB5',
+        'lo_bgp': '10.255.255.80',
+        'overlays': {
+            '1': {
+                'wan_ip': '203.0.113.50',
+                'network_id': 81,
+            }
+        }
+    },
+
+    'HUB6': {
+        'hub_name': 'HUB6',
+        'lo_bgp': '10.255.255.90',
+        'overlays': {
+            '1': {
+                'wan_ip': '203.0.113.60',
+                'network_id': 91,
+            }
+        }
+    }
+}
+%}
