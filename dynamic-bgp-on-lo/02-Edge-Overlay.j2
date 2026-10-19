@@ -1,9 +1,21 @@
 {# 02-Edge-Overlay.j2                                                         #}
 {# Release: 7.6                                                               #}
 {# Design flavor: Dynamic BGP on Loopback (unified, ADVPN 2.0 ready)          #}
+{# Custom naming convention implemented for VPN tunnels.                      #}
 {# -------------------------------------------------------------------------- #}
 {# Disclaimer: Normally, this file is not supposed to be edited by users.     #}
 {# -------------------------------------------------------------------------- #}
+
+{#
+  VPN naming convention:
+    <hub_name>_<ul_id><network_id>
+
+  Example:
+    HDC_111
+      HDC = Hub
+      1   = Branch Underlay ID
+      11  = ADVPN Network-ID
+#}
 
 {% import '00-Project' as project with context %}
 
@@ -30,17 +42,25 @@
       if i.role == 'wan' and 
       i.name is defined and
       i.ol_type in project.hubs[h].overlays %}
-  {# Track generated tunnels, to handle duplicates by adding extra index as a suffix #}
-  {% set ul_name = i.ul_name~"-" if i.ul_name is defined else "" %}
-  {# If no explicit Hub name is defined, then "H<hub_number>" is used #}
-  {% set hub_name = project.hubs[h].hub_name|upper if project.hubs[h].hub_name is defined else "H"~hubloop.index %}
-  {% set ol_tun = ul_name~hub_name~"_"~i.ol_type %}
-  {% set count = ol_tunnels|select("equalto", ol_tun)|list|count %}
-  {# Tunnel name = '<hub_name>_<ol_type>' if no duplicates, otherwise '<hub_name>_<ol_type>_<index>' #}
-  {% set ol_tun_name = ol_tun if not count else ol_tun~'_'~(count+1) %}
-  {{ ol_tunnels.append(ol_tun) or "" }}
+      {# Track generated tunnels, to handle duplicates by adding extra index as a suffix #}
+      {% set ul_name = i.ul_name~"-" if i.ul_name is defined else "" %}
+
+      {# If no explicit Hub name is defined, then "H<hub_number>" is used #}
+      {% set hub_name = project.hubs[h].hub_name|upper if project.hubs[h].hub_name is defined else "H"~hubloop.index %}
+
+      {# Get network ID for this hub overlay #}
+      {% set network_id = project.hubs[h].overlays[i.ol_type].network_id %}
+
+      {# Tunnel name = <hub_name>_<ul_id><network_id> #}
+      {% set ol_tun = hub_name~"_"~i.ul_id~network_id %}
+
+      {# Handle duplicate tunnel names #}
+      {% set count = ol_tunnels|select("equalto", ol_tun)|list|count %}
+      {% set ol_tun_name = ol_tun if not count else ol_tun~'_'~(count+1) %}
+      {{ ol_tunnels.append(ol_tun) or "" }}
 config vpn ipsec phase1-interface
   edit "{{ ol_tun_name }}"
+    set comments "VPN naming: {{ ol_tun_name }} = Hub {{ hub_name }}, Edge Underlay {{ i.ul_id }}, Network-ID {{ network_id }}"
     set interface "{{ i.name }}"
     set ike-version 2
     set transport udp

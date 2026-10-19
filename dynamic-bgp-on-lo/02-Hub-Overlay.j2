@@ -5,6 +5,17 @@
 {# Disclaimer: Normally, this file is not supposed to be edited by users.     #}
 {# -------------------------------------------------------------------------- #}
 
+{#
+  VPN naming convention:
+    <hub_name>_<ul_id><network_id>
+
+  Example:
+    HDC_111
+      HDC = Hub
+      1   = Branch Underlay ID
+      11  = ADVPN Network-ID
+#}
+
 {% import '00-Project' as project with context %}
 
 {% set multi_vrf = true if project.regions[region].vrfs|default([]) else false %}
@@ -25,8 +36,18 @@
       if i.role == 'wan' and 
       i.name is defined and
       i.ol_type in project.hubs[hostname].overlays %}
+      {# Get Hub name #}
+      {% set hub_name = project.hubs[hostname].hub_name|upper if project.hubs[hostname].hub_name is defined else hostname|upper %}
+
+      {# Get network ID for this overlay #}
+      {% set network_id = project.hubs[hostname].overlays[i.ol_type].network_id %}
+
+      {# VPN name = <hub_name>_<ul_id><network_id> #}
+      {% set vpn_name = hub_name~"_"~i.ul_id~network_id %}
 config vpn ipsec phase1-interface
-  edit "EDGE_{{ i.ol_type }}"
+  edit "{{ vpn_name }}"
+    set comments "VPN naming: {{ vpn_name }} = Hub {{ hub_name }}, Edge Underlay {{ i.ul_id }}, Network-ID {{ network_id }}"
+    set type dynamic
     set type dynamic
     set interface "{{ i.name }}"
     set ike-version 2
@@ -75,8 +96,8 @@ config vpn ipsec phase1-interface
   next
 end
 config vpn ipsec phase2-interface
-  edit "EDGE_{{ i.ol_type }}"
-    set phase1name "EDGE_{{ i.ol_type }}"
+  edit "{{ vpn_name }}"
+    set phase1name "{{ vpn_name }}"
     set proposal aes256gcm
     set dhgrp 20 21 14
     {{ 'set addke1 ml-kem-768 none' if options.pqc else 'unset addke1' }}
@@ -85,7 +106,7 @@ config vpn ipsec phase2-interface
   next
 end
 config system interface
-  edit "EDGE_{{ i.ol_type }}"
+  edit "{{ vpn_name }}"
     set vrf {{ pe_vrf }}
   next
 end
